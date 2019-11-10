@@ -18,10 +18,10 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-long bilibiliID = 163637592; // b站UID 默认值为xianfei的UID
+long bilibiliID = 9872607; // b站UID 默认值为xianfei的UID
 int timeZone = +8; // 时区设定，默认北京所在的+8区
 int timeOffset = -1; // 时钟偏移量 用于修正网络授时延时等
-int refreshRate = 2; // 更新频率 （算法是秒数对此数字取模等于零时刷新
+int refreshRate = 10; // 更新频率 （算法是秒数对此数字取模等于零时刷新
 
 LiquidCrystal_I2C lcd(0x20, 16, 2); // 显示屏初始化
 static long biliFans = -1; 
@@ -143,8 +143,7 @@ void syncTimeByHttpHead(String& httpContent) {
   increaseTime();
 }
 
-void increaseTime()
-{
+void increaseTime(){
   s++;
   if (s > 59) {
     s = s % 60;
