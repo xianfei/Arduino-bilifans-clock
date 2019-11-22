@@ -18,6 +18,9 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
+// serial output for debug
+// #define ENABLE_SERIAL
+
 long bilibiliID = 9872607; // b站UID 默认值为xianfei的UID
 int timeZone = +8; // 时区设定，默认北京所在的+8区
 int timeOffset = -1; // 时钟偏移量 用于修正网络授时延时等
@@ -31,15 +34,19 @@ unsigned long oldmillis = 0; //计时器
 void setup() {
   lcd.init();
   lcd.backlight();
+  #if defined(ENABLE_SERIAL)
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
+  #endif
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);
   // Enter a MAC address for your controller below.
   byte mac[] = { 0x28, 0xAD, 0xBE, 0xEF, 0xB9, 0xED };
   if (!Ethernet.begin(mac)) { // try to congifure using IP address instead of DHCP:
     IPAddress ip(192, 168, 2, 222); // Set the static IP address to use if the DHCP fails to assign
+    #if defined(ENABLE_SERIAL)
     Serial.println("Failed to configure Ethernet using DHCP");
+    #endif
     Ethernet.begin(mac, ip);
   }
   lcd.setCursor(0, 0);
@@ -48,7 +55,9 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("UID:");
   lcd.print(bilibiliID);
+  #if defined(ENABLE_SERIAL)
   Serial.println(Ethernet.localIP());
+  #endif
   delay(2000);
   lcd.clear();
 }
@@ -64,16 +73,20 @@ void loop() {
       String httpContent = getHttp(String("http://api.bilibili.com/x/relation/stat?vmid=") + bilibiliID);
       if ((num = getBilibiliFollowerNumber(httpContent)) != -1) biliFans = num;
       syncTimeByHttpHead(httpContent);
+      #if defined(ENABLE_SERIAL)
       Serial.print(httpContent);
+      #endif
     }
   }
 }
 
-String getHttp(String addr) {
+String getHttp(const String& addr) {
   EthernetClient client;
   char host[20], getAddr[50];
   if (!sscanf(addr.c_str(), "htt%*[^:]://%[^/]/%s", host, getAddr)) {
+    #if defined(ENABLE_SERIAL)
     Serial.println("Error HTTP Address");
+    #endif
     return String("error");
   }
   if (client.connect(host, 80)) {
@@ -85,25 +98,34 @@ String getHttp(String addr) {
   // wait for socket available
   while (!client.available());
   // read single char to resultStr object
+  char c=0;
+  // ignore some unused content
+  // only save "Date:" and json content
+  while (client.available()&&c!='C') resultStr += c = (char)client.read();
+  while (client.available()&&c!='{') c = (char)client.read();
   while (client.available()) resultStr += (char)client.read();
   client.stop();
   //Serial.print(resultStr);
   return resultStr;
 }
 
-long getBilibiliFollowerNumber(String& httpContent) {
+long getBilibiliFollowerNumber(const String& httpContent) {
   long followerNum = -1;
   sscanf(httpContent.substring(httpContent.indexOf("follower")).c_str(), "follower\":%ld%*s", &followerNum);
+  #if defined(ENABLE_SERIAL)
   Serial.print(followerNum);
   // Serial.println(httpContent.substring(httpContent.indexOf("follower")).c_str());
   Serial.println("Fans Got");
+  #endif
   return followerNum;
 }
 
 void syncTimeByHttpHead(String& httpContent) {
   char date[4];
   if (!sscanf(httpContent.c_str(), "%*[^D]Date: %*[^,], %d %4s %d %d:%d:%d GMT%*s", &day, date, &y, &h, &m, &s)) {
+    #if defined(ENABLE_SERIAL)
     Serial.println("sync time error");
+    #endif
     return;
   }
   switch (date[0])
@@ -176,7 +198,9 @@ void output() {
   lcd.setCursor((10-(int)log10(biliFans))/2, 1); // try to make center the text
   lcd.print("Fans:");
   lcd.print(biliFans);
+  #if defined(ENABLE_SERIAL)
   Serial.println("Printed");
+  #endif
   // convert time
   lcd.setCursor(0, 0);
   char temp[16] = {0};
