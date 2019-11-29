@@ -29,16 +29,19 @@ LiquidCrystal_I2C lcd(0x20, 16, 2); // 显示屏初始化
 static long biliFans = -1;
 static int h, m, s = 9, y, mon, day, xq; // 系统时间 时 分 秒 年 月 日 星期
 unsigned long oldmillis = 0; //计时器
+constexpr char *BLANK = "     ";
 
 void setup() {
   lcd.init();
   lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Check Ethernet");
 #if defined(ENABLE_SERIAL)
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
 #endif
-  pinMode(4, OUTPUT);
-  digitalWrite(4, HIGH);
+//  pinMode(4, OUTPUT);
+//  digitalWrite(4, HIGH);
   // Enter a MAC address for your controller below.
   byte mac[] = { 0x28, 0xAD, 0xBE, 0xEF, 0xB9, 0xED };
   if (!Ethernet.begin(mac)) { // try to congifure using IP address instead of DHCP:
@@ -80,6 +83,7 @@ void loop() {
 
 String getHttp(const String& addr) {
   EthernetClient client;
+  {
   char host[20], getAddr[50];
   if (!sscanf(addr.c_str(), "htt%*[^:]://%[^/]/%s", host, getAddr)) {
 #if defined(ENABLE_SERIAL)
@@ -87,11 +91,20 @@ String getHttp(const String& addr) {
 #endif
     return String("error");
   }
+  CONNECT:
   if (client.connect(host, 80)) {
     // Make a HTTP request:
     const auto request = String ("GET /") + getAddr + " HTTP/1.1\n" + "Host: " + host + "\nConnection: close\n";
     client.println(request);
-  } else Serial.println("connection failed"); // if you didn't get a connection to the server:
+  } else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("ConnectionFailed");
+    Serial.println("connection failed");
+    delay(1000);
+    goto CONNECT;
+    } // if you didn't get a connection to the server:
+  }
   String resultStr;
   // wait for socket available
   while (!client.available());
@@ -186,12 +199,13 @@ void increaseTime() {
 void output() {
   increaseTime();
   // output fans
-  lcd.setCursor((10 - (int)log10(biliFans)) / 2, 1); // try to make center the text
-  lcd.printf("Fans:%d",biliFans);
+  lcd.setCursor(0, 1);
+  // lcd.setCursor((10 - (int)log10(biliFans)) / 2, 1); // try to make center the text
+  lcd.printf("%sFans:%d       ", BLANK + (5 - (10 - (int)log10(biliFans)) / 2), biliFans);
 #if defined(ENABLE_SERIAL)
   Serial.println("Printed");
 #endif
   // convert time
   lcd.setCursor(0, 0);
-  lcd.printf(" %02d-%02d %02d:%02d:%02d", mon, day, h, m, s);
+  lcd.printf(" %02d-%02d %02d:%02d:%02d ", mon, day, h, m, s);
 }
