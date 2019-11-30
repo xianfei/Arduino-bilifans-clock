@@ -20,12 +20,12 @@
 
 // #define ENABLE_SERIAL  // serial output for debug
 
-long bilibiliID = 9872607; // b站UID 默认值为xianfei的UID
-int timeZone = +8; // 时区设定，默认北京所在的+8区
-int timeOffset = -1; // 时钟偏移量 用于修正网络授时延时等
-int refreshRate = 10; // 更新间隔秒数 （算法是秒数对此数字取模等于零时刷新
+#define BILIBILI_ID 9872607 // b站UID 默认值为xianfei的UID
+#define TIME_ZONE +8 // 时区设定，默认北京所在的+8区
+#define TIME_OFFSET -1 // 时钟偏移量 用于修正网络授时延时等
+#define REFRESH_RATE 10 // 更新间隔秒数 （算法是秒数对此数字取模等于零时刷新
 
-LiquidCrystal_I2C lcd(0x20, 16, 2); // 显示屏初始化
+LiquidCrystal_I2C lcd(0x20, 16, 2); // 显示屏
 static long biliFans = -1;
 static int h, m, s = 9, y, mon, day, xq; // 系统时间 时 分 秒 年 月 日 星期
 unsigned long oldmillis = 0; //计时器
@@ -40,8 +40,8 @@ void setup() {
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
 #endif
-//  pinMode(4, OUTPUT);
-//  digitalWrite(4, HIGH);
+  //  pinMode(4, OUTPUT);
+  //  digitalWrite(4, HIGH);
   // Enter a MAC address for your controller below.
   byte mac[] = { 0x28, 0xAD, 0xBE, 0xEF, 0xB9, 0xED };
   if (!Ethernet.begin(mac)) { // try to congifure using IP address instead of DHCP:
@@ -56,7 +56,7 @@ void setup() {
   lcd.print(Ethernet.localIP());
   lcd.setCursor(0, 1);
   lcd.print("UID:");
-  lcd.print(bilibiliID);
+  lcd.print(BILIBILI_ID);
 #if defined(ENABLE_SERIAL)
   Serial.println(Ethernet.localIP());
 #endif
@@ -69,9 +69,9 @@ void loop() {
   if (millis_ - oldmillis >= 1000) {
     oldmillis = millis_;
     output();
-    if (s % refreshRate == 0) {
+    if (s % REFRESH_RATE == 0) {
       long num;
-      String httpContent = getHttp(String("http://api.bilibili.com/x/relation/stat?vmid=") + bilibiliID);
+      String httpContent = getHttp(String("http://api.bilibili.com/x/relation/stat?vmid=") + BILIBILI_ID);
       if ((num = getBilibiliFollowerNumber(httpContent)) != -1) biliFans = num;
       syncTimeByHttpHead(httpContent);
 #if defined(ENABLE_SERIAL)
@@ -84,25 +84,25 @@ void loop() {
 String getHttp(const String& addr) {
   EthernetClient client;
   {
-  char host[20], getAddr[50];
-  if (!sscanf(addr.c_str(), "htt%*[^:]://%[^/]/%s", host, getAddr)) {
+    char host[20], getAddr[50];
+    if (!sscanf(addr.c_str(), "htt%*[^:]://%[^/]/%s", host, getAddr)) {
 #if defined(ENABLE_SERIAL)
-    Serial.println("Error HTTP Address");
+      Serial.println("Error HTTP Address");
 #endif
-    return String("error");
-  }
-  CONNECT:
-  if (client.connect(host, 80)) {
-    // Make a HTTP request:
-    const auto request = String ("GET /") + getAddr + " HTTP/1.1\n" + "Host: " + host + "\nConnection: close\n";
-    client.println(request);
-  } else {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("ConnectionFailed");
-    Serial.println("connection failed");
-    delay(1000);
-    goto CONNECT;
+      return String("error");
+    }
+CONNECT:
+    if (client.connect(host, 80)) {
+      // Make a HTTP request:
+      const auto request = String ("GET /") + getAddr + " HTTP/1.1\n" + "Host: " + host + "\nConnection: close\n";
+      client.println(request);
+    } else {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("ConnectionFailed");
+      Serial.println("connection failed");
+      delay(1000);
+      goto CONNECT;
     } // if you didn't get a connection to the server:
   }
   String resultStr;
@@ -164,8 +164,8 @@ void syncTimeByHttpHead(String& httpContent) {
       mon = 12;
       break;
   }
-  h += timeZone;
-  s += timeOffset;
+  h += TIME_ZONE;
+  s += TIME_OFFSET;
   increaseTime();
 }
 
